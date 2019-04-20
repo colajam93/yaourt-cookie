@@ -10,10 +10,20 @@ CONTAINER_NAME: str = 'yaourt_cookie'
 PACKAGE_DIR: str = os.getcwd()
 
 
+def space_join(gen):
+    return ' '.join(gen)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument('package', nargs='+')
+    parser.add_argument('-e', '--extra-command', action='append')
     args = parser.parse_args()
+
+    if args.extra_command:
+        extra_command = args.extra_command
+    else:
+        extra_command = []
 
     client = docker.from_env()
 
@@ -21,11 +31,12 @@ def main() -> None:
         client.images.get(IMAGE_NAME)
     except docker.errors.ImageNotFound:
         subprocess.run(['docker', 'pull', IMAGE_NAME])
-    command = ['/usr/bin/yay', '--noconfirm', '-S']
-    command += args.package
+    build_command = ['/usr/bin/yay', '--noconfirm', '-S']
+    build_command += args.package
+    commands = ' && '.join(extra_command + [space_join(build_command)])
     client.containers.run(
         IMAGE_NAME,
-        command=command,
+        command=f"/usr/bin/bash -c '{commands}'",
         name=CONTAINER_NAME,
         remove=True,
         volumes={PACKAGE_DIR: {
