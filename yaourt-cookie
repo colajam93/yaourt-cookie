@@ -1,0 +1,38 @@
+#!/usr/bin/env python3
+
+import argparse
+import docker
+import subprocess
+import os
+
+IMAGE_NAME: str = 'colajam93/yay'
+CONTAINER_NAME: str = 'yaourt_cookie'
+PACKAGE_DIR: str = os.getcwd()
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument('package', nargs='+')
+    args = parser.parse_args()
+
+    client = docker.from_env()
+
+    try:
+        client.images.get(IMAGE_NAME)
+    except docker.errors.ImageNotFound:
+        subprocess.run(['docker', 'pull', IMAGE_NAME])
+    command = ['/usr/bin/yay', '--noconfirm', '-S']
+    command += args.package
+    client.containers.run(
+        IMAGE_NAME,
+        command=command,
+        name=CONTAINER_NAME,
+        remove=True,
+        volumes={PACKAGE_DIR: {
+            'bind': '/home/user/pkg',
+            'mode': 'rw'
+        }})
+
+
+if __name__ == '__main__':
+    main()
